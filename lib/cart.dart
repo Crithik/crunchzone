@@ -1,104 +1,80 @@
 import 'package:flutter/material.dart';
-import 'products.dart';
-import 'main.dart';
-import 'login.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'auth_service.dart';
+import 'providers/cart_provider.dart';
+import 'models/cart_item.dart';
+import 'models/order.dart';
+import 'pages/order_receipt_page.dart';
 
-class CartPage extends StatefulWidget {
+class CartPage extends ConsumerStatefulWidget {
   final VoidCallback toggleTheme;
   final ThemeMode themeMode;
+  final AuthService authService;
+  final bool showAppBar;
+  
 
-  CartPage({required this.toggleTheme, required this.themeMode});
+  const CartPage({Key? key, required this.toggleTheme, required this.themeMode, required this.authService, this.showAppBar = true})
+      : super(key: key);
 
   @override
   _CartPageState createState() => _CartPageState();
 }
 
-class _CartPageState extends State<CartPage> {
-  int _currentIndex = 2;
+class _CartPageState extends ConsumerState<CartPage> {
 
-  // Cart items with quantity and price
-  List<Map<String, dynamic>> cartItems = [
-    {
-      "image": "assets/image/6281036008671.png",
-      "name": "Doritos Nacho Cheese - 210G",
-      "price": 1600,
-      "quantity": 1
-    },
-    {
-      "image": "assets/image/60410066317.png",
-      "name": "Smak Spicy Chick Peas - 80g",
-      "price": 540,
-      "quantity": 3
-    },
-  ];
+  void _updateQuantity(int productId, int quantity) {
+    ref.read(cartProvider.notifier).updateQuantity(productId, quantity);
+  }
+  void _removeItem(int productId) {
+    ref.read(cartProvider.notifier).removeFromCart(productId);
+  }
 
-  void _onTabChange(int index) {
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomePage(
-            toggleTheme: widget.toggleTheme,
-            themeMode: widget.themeMode,
-          ),
+  void _proceedToCheckout() {
+    final cartItems = ref.read(cartProvider);
+    final totalPrice = ref.read(cartTotalProvider);
+    
+    if (cartItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your cart is empty!'),
+          backgroundColor: Colors.red,
         ),
       );
-    } else if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProductPage(
-            toggleTheme: widget.toggleTheme,
-            themeMode: widget.themeMode,
-          ),
-        ),
-      );
-    } else if (index == 3) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LoginPage(
-            toggleTheme: widget.toggleTheme,
-            themeMode: widget.themeMode,
-          ),
-        ),
-      );
-    } else {
-      setState(() {
-        _currentIndex = index;
-      });
+      return;
     }
-  }
 
-  // Calculate total price
-  int _calculateTotalPrice() {
-  int total = 0;
-  for (var item in cartItems) {
-    total += (item["price"] as int) * (item["quantity"] as int);
-  }
-  return total;
-}
+    // Create order
+    final order = Order(
+      orderId: DateTime.now().millisecondsSinceEpoch.toString(),
+      orderDate: DateTime.now(),
+      items: cartItems.map((cartItem) => OrderItem(
+        name: cartItem.name,
+        price: cartItem.price,
+        quantity: cartItem.quantity,
+        totalPrice: cartItem.totalPrice,
+      )).toList(),
+      totalAmount: totalPrice,
+    );
 
-  void _increaseQuantity(int index) {
-    setState(() {
-      cartItems[index]["quantity"]++;
-    });
-  }
+    // Clear cart
+    ref.read(cartProvider.notifier).clearCart();
 
-  void _decreaseQuantity(int index) {
-    setState(() {
-      if (cartItems[index]["quantity"] > 1) {
-        cartItems[index]["quantity"]--;
-      }
-    });
+    // Navigate to receipt page
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OrderReceiptPage(order: order),
+      ),
+    );
   }
-
   @override
   Widget build(BuildContext context) {
     bool isDarkMode = widget.themeMode == ThemeMode.dark;
+    final cartItems = ref.watch(cartProvider);
+    final totalPrice = ref.watch(cartTotalProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.showAppBar ? AppBar(
         backgroundColor: const Color.fromRGBO(236, 170, 27, 1.0),
         elevation: 0,
         title: Row(
@@ -121,179 +97,178 @@ class _CartPageState extends State<CartPage> {
             ),
           ],
         ),
-      ),
-
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          bool isWideScreen = constraints.maxWidth > 600;
-
-          return SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: isWideScreen ? 100 : 16, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: 600),
-                    child: Column(
-                      children: List.generate(
-                        cartItems.length,
-                        (index) => _buildCartItem(
-                          index,
-                          cartItems[index]["image"],
-                          cartItems[index]["name"],
-                          cartItems[index]["price"],
-                          cartItems[index]["quantity"],
-                          isDarkMode,
+      ) : null,
+      body: cartItems.isEmpty 
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.shopping_cart, size: 100, color: isDarkMode ? Colors.white : Colors.black),
+                const SizedBox(height: 20),
+                Text(
+                  "Your cart is empty",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  "Add items from the shop",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDarkMode ? Colors.grey[300] : Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          )
+        : Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  itemCount: cartItems.length,
+                  itemBuilder: (context, index) {
+                    final item = cartItems[index];
+                    return Card(
+                      margin: const EdgeInsets.all(8.0),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Row(
+                          children: [
+                            // Product Image
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  image: item.image.startsWith('http')
+                                      ? NetworkImage(item.image)
+                                      : AssetImage(item.image) as ImageProvider,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            
+                            // Product Details
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.name,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Rs.${item.price}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Color.fromRGBO(236, 170, 27, 1.0),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            // Quantity Controls
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      onPressed: () => _updateQuantity(item.productId, item.quantity - 1),
+                                      icon: const Icon(Icons.remove_circle_outline),
+                                      iconSize: 20,
+                                    ),
+                                    Text(
+                                      '${item.quantity}',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => _updateQuantity(item.productId, item.quantity + 1),
+                                      icon: const Icon(Icons.add_circle_outline),
+                                      iconSize: 20,
+                                    ),
+                                  ],
+                                ),
+                                IconButton(
+                                  onPressed: () => _removeItem(item.productId),
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  iconSize: 20,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    ),
+                    );
+                  },
+                ),
+              ),
+              
+              // Total and Checkout
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[800] : Colors.grey[100],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
-
-                  Divider(thickness: 2, color: isDarkMode ? Colors.white : Colors.black),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Row(
+                ),
+                child: Column(
+                  children: [
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          "Total",
+                          'Total: Rs.${totalPrice.toStringAsFixed(2)}',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: isDarkMode ? Colors.white : Colors.black,
                           ),
                         ),
-                        Text(
-                          "RS.${_calculateTotalPrice()}",
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromRGBO(236, 170, 27, 1.0),
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),                        ),
+                        onPressed: _proceedToCheckout,
+                        child: const Text(
+                          'Proceed to Checkout',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: isDarkMode ? Colors.yellow : Colors.black,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 10),
-
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                    onPressed: () {},
-                    child: Text("Checkout", style: TextStyle(fontSize: 16)),
-                  ),
-                  SizedBox(height: 20),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabChange,
-        selectedItemColor: isDarkMode ? Colors.yellow : Colors.black,
-        unselectedItemColor: isDarkMode ? Colors.grey : Colors.black54,
-        backgroundColor: isDarkMode ? Colors.black : Colors.yellow,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_bag),
-            label: 'Shop',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Cart',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Account',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCartItem(int index, String imagePath, String name, int price, int quantity, bool isDarkMode) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: 600),
-      child: Card(
-        color: isDarkMode ? Colors.black54 : Colors.white,
-        elevation: 2,
-        margin: EdgeInsets.symmetric(vertical: 10),
-        child: Padding(
-          padding: EdgeInsets.all(10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Image.asset(
-                imagePath,
-                width: 80,
-                height: 80,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(Icons.broken_image, size: 80, color: Colors.grey);
-                },
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      "RS.${price * quantity}",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.yellow : Colors.black,
                       ),
                     ),
                   ],
                 ),
               ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.remove, color: isDarkMode ? Colors.white : Colors.black),
-                    onPressed: () => _decreaseQuantity(index),
-                  ),
-                  Text(
-                    quantity.toString(),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.add, color: isDarkMode ? Colors.white : Colors.black),
-                    onPressed: () => _increaseQuantity(index),
-                  ),
-                ],
-              ),
-              Icon(Icons.close, color: Colors.red),
             ],
           ),
-        ),
-      ),
     );
   }
 }

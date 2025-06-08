@@ -1,192 +1,299 @@
 import 'package:flutter/material.dart';
-import 'main.dart';
-import 'products.dart';
-import 'cart.dart';
 import 'register.dart';
+import 'auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   final VoidCallback toggleTheme;
   final ThemeMode themeMode;
+  final AuthService authService;
 
-  LoginPage({required this.toggleTheme, required this.themeMode});
+  LoginPage({required this.toggleTheme, required this.themeMode, required this.authService});
 
   @override
   _LoginPageState createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  int _currentIndex = 3; 
-  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>(); 
-
-  void _onTabChange(int index) {
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomePage(
-            toggleTheme: widget.toggleTheme,
-            themeMode: widget.themeMode,
-          ),
-        ),
-      );
-    } else if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProductPage(
-            toggleTheme: widget.toggleTheme,
-            themeMode: widget.themeMode,
-          ),
-        ),
-      );
-    } else if (index == 2) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CartPage(
-            toggleTheme: widget.toggleTheme,
-            themeMode: widget.themeMode,
-          ),
-        ),
-      );
-    } else {
-      setState(() {
-        _currentIndex = index;
-      });
-    }
-  }
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     bool isDarkMode = widget.themeMode == ThemeMode.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color.fromRGBO(236, 170, 27, 1.0),
-        elevation: 0,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "CrunchZone",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-                color: isDarkMode ? Colors.white : Colors.black,
-              ),
-            ),
-            IconButton(
-              icon: Icon(
-                isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                color: isDarkMode ? Colors.white : Colors.black,
-              ),
-              onPressed: widget.toggleTheme,
-            ),
-          ],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color.fromRGBO(236, 170, 27, 1.0),
+              const Color.fromRGBO(236, 170, 27, 0.8),
+              isDarkMode ? Colors.grey[900]! : Colors.grey[100]!,
+            ],
+          ),
         ),
-      ),
-
-      // Login Form
-      body: SingleChildScrollView(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                double screenWidth = constraints.maxWidth;
-                bool isWideScreen = screenWidth > 600;
-
-                return Card(
-                  color: isDarkMode ? Colors.white : Colors.white,
-                  elevation: 5,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: isWideScreen ? 400 : double.infinity, 
-                      ),
-                      child: Form(
-                        key: _formKey, 
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Center(
-                              child: Text(
-                                "Login",
-                                style: TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDarkMode ? Colors.black : Colors.black,
-                                ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                // Header Section
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "CrunchZone",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 28,
+                              color: Colors.black,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                                color: Colors.black,
+                                size: 24,
                               ),
                             ),
-                            SizedBox(height: 20),
+                            onPressed: widget.toggleTheme,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      // Welcome Text
+                      Text(
+                        "Welcome Back!",
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Sign in to continue your snacking journey",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.black.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Login Form Card
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Card(
+                    elevation: 20,
+                    shadowColor: Colors.black.withOpacity(0.2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white,
+                            isDarkMode ? Colors.grey[50]! : Colors.white,
+                          ],
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(32),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Login Title
+                            Text(
+                              "Sign In",
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 32),
 
-                            _buildInputField("Username", _usernameController, isDarkMode),
-                            SizedBox(height: 15),
+                            // Email Field
+                            _buildModernInputField(
+                              "Email",
+                              _emailController,
+                              Icons.email_outlined,
+                              isDarkMode,
+                            ),
+                            const SizedBox(height: 20),
 
-                            _buildInputField("Password", _passwordController, isDarkMode, obscureText: true),
-                            SizedBox(height: 20),
+                            // Password Field
+                            _buildModernInputField(
+                              "Password",
+                              _passwordController,
+                              Icons.lock_outline,
+                              isDarkMode,
+                              obscureText: true,
+                            ),
+                            const SizedBox(height: 32),
 
-                            Center(
+                            // Login Button
+                            Container(
+                              height: 56,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black,
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(horizontal: 50, vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  backgroundColor: const Color.fromRGBO(236, 170, 27, 1.0),
+                                  foregroundColor: Colors.black,
+                                  elevation: 8,
+                                  shadowColor: const Color.fromRGBO(236, 170, 27, 0.4),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
                                 ),
-                                onPressed: () {
+                                onPressed: _isLoading ? null : () async {
                                   if (_formKey.currentState!.validate()) {
-                                    // Perform login
-                                    print("Logging in with Username: ${_usernameController.text}, Password: ${_passwordController.text}");
+                                    setState(() {
+                                      _isLoading = true;
+                                    });
+                                    
+                                    try {
+                                      bool success = await widget.authService.login(
+                                        _emailController.text.trim(), 
+                                        _passwordController.text.trim()
+                                      );
+                                      
+                                      if (success) {
+                                        // AuthWrapper will automatically navigate to home
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text("Login failed. Please check your credentials."),
+                                            backgroundColor: Colors.red[400],
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text("Error: ${e.toString()}"),
+                                          backgroundColor: Colors.red[400],
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                      );
+                                    } finally {
+                                      setState(() {
+                                        _isLoading = false;
+                                      });
+                                    }
                                   }
                                 },
-                                child: Text("Login", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 24,
+                                        width: 24,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.black,
+                                          strokeWidth: 3,
+                                        ),
+                                      )
+                                    : const Text(
+                                        "Sign In",
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                               ),
                             ),
 
-                            SizedBox(height: 20),
+                            const SizedBox(height: 32),
 
-                            Center(
-                              child: RichText(
-                                text: TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: "Don't have an account? ",
+                            // Register Link
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.grey[200]!,
+                                  width: 1,
+                                ),
+                              ),
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    PageRouteBuilder(
+                                      pageBuilder: (context, animation, secondaryAnimation) => 
+                                        RegisterPage(
+                                          toggleTheme: widget.toggleTheme,
+                                          themeMode: widget.themeMode,
+                                          authService: widget.authService,
+                                        ),
+                                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                        return SlideTransition(
+                                          position: animation.drive(
+                                            Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                                              .chain(CurveTween(curve: Curves.easeInOut)),
+                                          ),
+                                          child: child,
+                                        );
+                                      },
+                                    ),
+                                  );
+                                },
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        "Don't have an account? ",
+                                        style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    Text(
+                                      "Sign Up",
                                       style: TextStyle(
-                                        color: isDarkMode ? Colors.black : Colors.black,
+                                        color: const Color.fromRGBO(236, 170, 27, 1.0),
+                                        fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    WidgetSpan(
-                                      child: GestureDetector(
-                                        onTap: () {
-                                          Navigator.pushReplacement(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => RegisterPage(
-                                                toggleTheme: widget.toggleTheme,
-                                                themeMode: widget.themeMode,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        child: Text(
-                                          "Register",
-                                          style: TextStyle(
-                                            color: Colors.yellow,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.arrow_forward,
+                                      color: const Color.fromRGBO(236, 170, 27, 1.0),
+                                      size: 20,
                                     ),
-                                  ],
-                                ),
+                                  ] 
+  ),
+),
                               ),
                             ),
                           ],
@@ -194,67 +301,109 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-                );
-              },
+                ),
+                
+                const SizedBox(height: 40),
+              ],
             ),
           ),
         ),
       ),
-
-      // Bottom Navigation Bar
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabChange,
-        selectedItemColor: isDarkMode ? Colors.yellow : Colors.black,
-        unselectedItemColor: isDarkMode ? Colors.grey : Colors.black54,
-        backgroundColor: isDarkMode ? Colors.black : Colors.yellow,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_bag),
-            label: 'Shop',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Cart',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Account',
-          ),
-        ],
-      ),
     );
   }
 
-  // Input Field Widget with Validation
-  Widget _buildInputField(String label, TextEditingController controller, bool isDarkMode, {bool obscureText = false}) {
+  Widget _buildModernInputField(
+    String label,
+    TextEditingController controller,
+    IconData icon,
+    bool isDarkMode, {
+    bool obscureText = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: TextStyle(fontWeight: FontWeight.bold, color: isDarkMode ? Colors.black : Colors.black),
-        ),
-        SizedBox(height: 5),
-        TextFormField(
-          controller: controller,
-          obscureText: obscureText,
-          decoration: InputDecoration(
-            hintText: "Enter your $label",
-            filled: true,
-            fillColor: isDarkMode ? Colors.grey[800] : Colors.grey[200],
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
+            fontSize: 16,
           ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return "Please enter a valid $label"; 
-            }
-            return null;
-          },
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                spreadRadius: 1,
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: TextFormField(
+            controller: controller,
+            obscureText: obscureText,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: "Enter your ${label.toLowerCase()}",
+              hintStyle: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 16,
+              ),
+              prefixIcon: Container(
+                margin: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(236, 170, 27, 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: const Color.fromRGBO(236, 170, 27, 1.0),
+                  size: 20,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Colors.grey[200]!,
+                  width: 1,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: Color.fromRGBO(236, 170, 27, 1.0),
+                  width: 2,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Colors.red[300]!,
+                  width: 1,
+                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return "Please enter a valid $label";
+              }
+              return null;
+            },
+          ),
         ),
       ],
     );

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'login.dart';
+import 'auth_service.dart';
 
 class RegisterPage extends StatefulWidget {
   final VoidCallback toggleTheme;
   final ThemeMode themeMode;
+  final AuthService authService;
 
-  RegisterPage({required this.toggleTheme, required this.themeMode});
+  RegisterPage({required this.toggleTheme, required this.themeMode, required this.authService});
 
   @override
   _RegisterPageState createState() => _RegisterPageState();
@@ -16,6 +18,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -103,21 +106,83 @@ class _RegisterPageState extends State<RegisterPage> {
                                 foregroundColor: Colors.white,
                                 padding: EdgeInsets.symmetric(horizontal: 50, vertical: 12),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              onPressed: () {
+                              ),                              onPressed: _isLoading ? null : () async {
                                 
                                 String username = _usernameController.text.trim();
                                 String email = _emailController.text.trim();
                                 String password = _passwordController.text.trim();
                                 String confirmPassword = _confirmPasswordController.text.trim();
+                                
+                                // Validate inputs
+                                if (username.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text("Username is required"))
+                                  );
+                                  return;
+                                }
+                                
+                                if (email.isEmpty || !email.contains('@')) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text("Please enter a valid email address"))
+                                  );
+                                  return;
+                                }
+                                
+                                if (password.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text("Password is required"))
+                                  );
+                                  return;
+                                }
+                                
+                                if (password != confirmPassword) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text("Passwords don't match"))
+                                  );
+                                  return;
+                                }
 
-                                print("Registering User:");
-                                print("Username: $username");
-                                print("Email: $email");
-                                print("Password: $password");
-                                print("Confirm Password: $confirmPassword");
+                                setState(() {
+                                  _isLoading = true;
+                                });
+                                
+                                try {
+                                  // Register the user
+                                  bool success = await widget.authService.register(
+                                    email,
+                                    password,
+                                    username
+                                  );
+                                    if (success) {
+                                    // No need to navigate, the AuthWrapper will detect the login
+                                    // and automatically show the HomePage
+                                  } else {
+                                    // Show error
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Registration failed. Please try again."))
+                                    );
+                                  }
+                                } catch (e) {
+                                  // Show error
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text("Error: ${e.toString()}"))
+                                  );
+                                } finally {
+                                  setState(() {
+                                    _isLoading = false;
+                                  });
+                                }
                               },
-                              child: Text("Register", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              child: _isLoading 
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text("Register", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),
 
@@ -125,16 +190,16 @@ class _RegisterPageState extends State<RegisterPage> {
 
                           Center(
                             child: GestureDetector(
-                              onTap: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => LoginPage(
-                                      toggleTheme: widget.toggleTheme,
-                                      themeMode: widget.themeMode,
+                              onTap: () {                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => LoginPage(
+                                        toggleTheme: widget.toggleTheme,
+                                        themeMode: widget.themeMode,
+                                        authService: widget.authService,
+                                      ),
                                     ),
-                                  ),
-                                );
+                                  );
                               },
                               child: RichText(
                                 text: TextSpan(
